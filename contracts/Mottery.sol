@@ -136,16 +136,16 @@ contract Mottery is AccessControl, Ownable {
     uint requiredFunds = feesPool.add(prizePool);
     require(token.balanceOf(address(this)) >= requiredFunds, "Contract has insufficient funding");
 
-    // 4. Select a random winner and update lastPrizePool
+    // 4. Select a random winner and 
     winningId = pseudoRandomIndex();
-    lastPrizePool = prizePool;
 
     // 5. Transfer feesPool to caller and zero it out
-    token.transfer(msg.sender, feesPool);
+    require(token.transfer(msg.sender, feesPool), "Fund transfer, feesPool, failed");
     feesPool = 0;
 
-    // 6. Transfer prizePool to winner and zero it out
-    token.transfer(tickets[winningId].playerAddress, prizePool);
+    // 6. Transfer prizePool to winner, update lastPrizePool, and zero out prizePool
+    require(token.transfer(tickets[winningId].playerAddress, prizePool), "Fund transfer, prizePool, failed");
+    lastPrizePool = prizePool;
     prizePool = 0;
 
     // 7. Clear tickets
