@@ -18,7 +18,7 @@ const tokens = function(amount) {
 beforeEach(async function() {
   [owner, alice, bob] = await ethers.getSigners();
 
-  const ContractFactory = await ethers.getContractFactory("MOKToken");
+  const ContractFactory = await ethers.getContractFactory("MOK");
   contract = await ContractFactory.deploy(tokens(initialSupply));
   await contract.deployed();
 });
@@ -27,7 +27,7 @@ afterEach(async function () {
   contract = null;
 })
 
-describe("ERC-20: MOKToken", function() {
+describe("ERC-20 Token: MOK", function() {
   it("Contract Deployment", function() {
     expect(contract.address).to.not.be.undefined;
     expect(contract.address).to.not.be.null;
