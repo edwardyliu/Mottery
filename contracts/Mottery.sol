@@ -83,14 +83,14 @@ contract Mottery is AccessControl, Ownable {
     require(available == true, "Mottery instance is not available, potentially under maintenance");
     
     // 2. Check if ERC-20 token is defined
-    require(tokenAddress == address(0), "ERC-20 token undefined");
+    require(tokenAddress != address(0), "ERC-20 token undefined");
 
     // 3. Check if player's balance in ERC-20 token is sufficient
     uint requiredFunds = _amount.mul(pricePerTicket).mul(decimals).div(PRECISION);
     require(token.balanceOf(msg.sender) >= requiredFunds, "Caller has insufficient funding");
 
     // 4. Transfer required ERC-20 tokens from player to contract
-    require(token.transferFrom(msg.sender, address(this), requiredFunds), "Transfer failed");
+    require(token.transferFrom(msg.sender, address(this), requiredFunds), "Fund transfer failed");
 
     // 5. Calculate fees & prize, 
     // 6. Add fees to feesPool & prize to prizePool
@@ -130,22 +130,22 @@ contract Mottery is AccessControl, Ownable {
     require(now.sub(lastWithdrawalTime) >=  WITHDRAWAL_COOLDOWN, "Function 'withdraw' is on cooldown");
     
     // 2. Check if token is defined
-    require(tokenAddress == address(0), "ERC-20 token undefined");
+    require(tokenAddress != address(0), "ERC-20 token undefined");
 
     // 3. Check if contract's balance in ERC-20 token is sufficient
     uint requiredFunds = feesPool.add(prizePool);
     require(token.balanceOf(address(this)) >= requiredFunds, "Contract has insufficient funding");
 
-    // 4. Select a random winner
+    // 4. Select a random winner and update lastPrizePool
     winningId = pseudoRandomIndex();
+    lastPrizePool = prizePool;
 
     // 5. Transfer feesPool to caller and zero it out
     token.transfer(msg.sender, feesPool);
     feesPool = 0;
 
-    // 6. Transfer prizePool to winner, update lastPrizePool and zero out prizePool
+    // 6. Transfer prizePool to winner and zero it out
     token.transfer(tickets[winningId].playerAddress, prizePool);
-    lastPrizePool = prizePool;
     prizePool = 0;
 
     // 7. Clear tickets
