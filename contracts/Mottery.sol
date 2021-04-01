@@ -165,7 +165,19 @@ contract Mottery is AccessControl, Ownable {
     require(numberOfManagers < MAX_NUMBER_OF_MANAGERS, "Exceeds max number of managers allowed");
 
     numberOfManagers += 1;
-    _setupRole(MANAGER_ROLE, _manager);
+    grantRole(MANAGER_ROLE, _manager);
+  }
+
+  /**
+    @notice Remove a manager from this lottery
+    @param _manager The address of the manager
+   */
+  function fireManager(address _manager) external onlyOwner {
+    // 1. Check if is manager
+    require(hasRole(MANAGER_ROLE, _manager), "Address is not a manager");
+
+    revokeRole(MANAGER_ROLE, _manager);
+    numberOfManagers -= 1;
   }
 
   /**
