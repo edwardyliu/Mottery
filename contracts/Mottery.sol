@@ -14,8 +14,8 @@ contract Mottery is AccessControl, Ownable {
   // CONSTANT(s):
   uint public constant PRECISION = 10000;  // parts per token
   uint public constant FEES_RATE = 500;    // 5% of each token is charged as fees, value based on PRECISION (i.e. 0.05*10000)
-  uint public constant WITHDRAWAL_COOLDOWN = 300;  // withdrawal cooldown in second(s)
-  uint public constant MAX_NUMBER_OF_MANAGERS = 2;
+  uint public constant WITHDRAWAL_COOLDOWN = 300;   // withdrawal cooldown in second(s)
+  uint public constant MAX_NUMBER_OF_MANAGERS = 3;  // owner plus two managers
 
   // ROLE(s):
   bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -34,7 +34,7 @@ contract Mottery is AccessControl, Ownable {
   // STORAGE & LOGICAL VARIABLE(s):
   Ticket[] public tickets;
   uint public winningId;
-  uint public lastPrizePool;
+  uint public prevPrizePool = 0;
 
   uint public feesPool = 0;   // in units of token
   uint public prizePool = 0;  // in units of token
@@ -42,14 +42,17 @@ contract Mottery is AccessControl, Ownable {
 
   // ACCESS & CONTROL VARIABLE(s):
   bool public available = true; // a lock mechanism controlled by the owner
-  uint public lastWithdrawalTime;
-  uint private numberOfManagers = 0;
+  uint public prevWithdrawalTime;
 
-  constructor() public {
+  constructor(address _tokenAddress) public {
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(MANAGER_ROLE, msg.sender);
 
-    lastWithdrawalTime = now;
+    tokenAddress = _tokenAddress;
+    token = ERC20(tokenAddress);
+    decimals = uint(10)**token.decimals();
+
+    prevWithdrawalTime = now;
   }
 
   // PRIVATE HELPER FUNCTION(s):
@@ -60,7 +63,7 @@ contract Mottery is AccessControl, Ownable {
   function pseudoRandomIndex() private view returns (uint256) {
     return uint256(
       keccak256(
-        abi.encode(block.difficulty, lastWithdrawalTime, now, tickets)
+        abi.encode(block.difficulty, prevWithdrawalTime, now, tickets)
       )
     ) % tickets.length;
   }
@@ -127,7 +130,7 @@ contract Mottery is AccessControl, Ownable {
    */
   function withdraw() external isManager {
     // 1. Check if withdraw is on cooldown
-    require(now.sub(lastWithdrawalTime) >=  WITHDRAWAL_COOLDOWN, "Function 'withdraw' is on cooldown");
+    require(now.sub(prevWithdrawalTime) >=  WITHDRAWAL_COOLDOWN, "Function 'withdraw' is on cooldown");
     
     // 2. Check if token is defined
     require(tokenAddress != address(0), "ERC-20 token undefined");
@@ -143,16 +146,16 @@ contract Mottery is AccessControl, Ownable {
     require(token.transfer(msg.sender, feesPool), "Fund transfer, feesPool, failed");
     feesPool = 0;
 
-    // 6. Transfer prizePool to winner, update lastPrizePool, and zero out prizePool
+    // 6. Transfer prizePool to winner, update prevPrizePool, and zero out prizePool
     require(token.transfer(tickets[winningId].playerAddress, prizePool), "Fund transfer, prizePool, failed");
-    lastPrizePool = prizePool;
+    prevPrizePool = prizePool;
     prizePool = 0;
 
     // 7. Clear tickets
     delete tickets;
 
-    // 8. Reset clock variable lastWithdrawalTime
-    lastWithdrawalTime = now;
+    // 8. Reset clock variable prevWithdrawalTime
+    prevWithdrawalTime = now;
   }
   
   // RESTRICTED FUNCTION(s): ONLY-OWNER
@@ -162,9 +165,8 @@ contract Mottery is AccessControl, Ownable {
    */
   function hireManager(address _manager) external onlyOwner {
     // 1. Check if the current number of managers exceed MAX_NUMBER_OF_MANAGERS
-    require(numberOfManagers < MAX_NUMBER_OF_MANAGERS, "Exceeds max number of managers allowed");
+    require(getRoleMemberCount(MANAGER_ROLE) < MAX_NUMBER_OF_MANAGERS, "Exceeds max number of managers allowed");
 
-    numberOfManagers += 1;
     grantRole(MANAGER_ROLE, _manager);
   }
 
@@ -177,17 +179,6 @@ contract Mottery is AccessControl, Ownable {
     require(hasRole(MANAGER_ROLE, _manager), "Address is not a manager");
 
     revokeRole(MANAGER_ROLE, _manager);
-    numberOfManagers -= 1;
-  }
-
-  /**
-    @notice Sets the ERC-20 token used for this lottery
-    @param _tokenAddress The address of the ERC-20 token
-   */
-  function setTokenAddress(address _tokenAddress) external onlyOwner {
-    tokenAddress = _tokenAddress;
-    token = ERC20(tokenAddress);
-    decimals = uint(10)**token.decimals();
   }
 
   /**
