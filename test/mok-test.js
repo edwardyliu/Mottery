@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 
-// Setup
+// SETUP:
 const initialSupply = 1000000;
 const decimals = 18;
 
@@ -14,7 +14,6 @@ const tokens = function(amount) {
   return ethers.BigNumber.from(amount).mul(exp);
 }
 
-
 beforeEach(async function() {
   [owner, alice, bob] = await ethers.getSigners();
 
@@ -23,10 +22,11 @@ beforeEach(async function() {
   await contract.deployed();
 });
 
-afterEach(async function () {
+afterEach(async function() {
   contract = null;
 })
 
+// TEST(s):
 describe("ERC-20 Token: MOK", function() {
   it("Contract Deployment", function() {
     expect(contract.address).to.not.be.undefined;
